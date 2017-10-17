@@ -190,6 +190,7 @@ public class SomaticGenotypingEngine extends AssemblyBasedCallerGenotypingEngine
                     SomaticLikelihoodsEngine.log10Evidence(getAsRealMatrix(log10MatrixWithoutThisAllele));
             lods.setAlt(allele, log10EvidenceWithAllAlleles - log10EvidenceWithoutThisAllele);
         });
+
         return lods;
     }
 
