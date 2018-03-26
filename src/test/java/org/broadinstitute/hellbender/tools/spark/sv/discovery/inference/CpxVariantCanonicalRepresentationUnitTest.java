@@ -88,7 +88,7 @@ public class CpxVariantCanonicalRepresentationUnitTest extends GATKBaseTest {
                 .id("CPX_chr1:14492666-14492666")
                 .attribute(VCFConstants.END_KEY, 14492666)
                 .attribute(SVTYPE, GATKSVVCFConstants.CPX_SV_SYB_ALT_ALLELE_STR)
-                .attribute(SVLEN, 1)
+                .attribute(SVLEN, 409)
                 .attribute(SEQ_ALT_HAPLOTYPE, new String(manuallyCalculatedAltSeq));
         variantContextBuilder.attribute(CPX_EVENT_ALT_ARRANGEMENTS,
                 String.join(VCFConstants.INFO_FIELD_ARRAY_SEPARATOR, manuallyCalculatedAltArrangements));

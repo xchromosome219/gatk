@@ -42,8 +42,10 @@ public final class CpxVariantInterpreter {
     public static List<VariantContext> inferCpxVariant(final JavaRDD<AssemblyContigWithFineTunedAlignments> assemblyContigs,
                                                        final SvDiscoveryInputData svDiscoveryInputData) {
 
-        final Broadcast<ReferenceMultiSource> referenceBroadcast = svDiscoveryInputData.referenceBroadcast;
-        final Broadcast<SAMSequenceDictionary> referenceSequenceDictionaryBroadcast = svDiscoveryInputData.referenceSequenceDictionaryBroadcast;
+        final SvDiscoveryInputData.InputMetaData inputMetaData = svDiscoveryInputData.inputMetaData;
+
+        final Broadcast<ReferenceMultiSource> referenceBroadcast = inputMetaData.referenceBroadcast;
+        final Broadcast<SAMSequenceDictionary> referenceSequenceDictionaryBroadcast = inputMetaData.referenceSequenceDictionaryBroadcast;
 
         // almost every thing happens in this series of maps
         final JavaPairRDD<CpxVariantCanonicalRepresentation, Iterable<CpxVariantInducingAssemblyContig>> interpretationAndAssemblyEvidence =
@@ -53,7 +55,7 @@ public final class CpxVariantInterpreter {
                         .mapToPair(tig -> new Tuple2<>(new CpxVariantCanonicalRepresentation(tig), tig))
                         .groupByKey(); // two contigs could give the same variant
 
-        if (svDiscoveryInputData.discoverStageArgs.outputCpxResultsInHumanReadableFormat) {
+        if (inputMetaData.discoverStageArgs.outputCpxResultsInHumanReadableFormat) {
             writeResultsForHumanConsumption(svDiscoveryInputData.outputPath, interpretationAndAssemblyEvidence);
         }
 

@@ -1,7 +1,10 @@
 package org.broadinstitute.hellbender.tools.spark.sv.discovery;
 
 import com.google.common.annotations.VisibleForTesting;
-import htsjdk.samtools.*;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.logging.log4j.LogManager;
@@ -139,13 +142,13 @@ public final class SvDiscoverFromLocalAssemblyContigAlignmentsSpark extends GATK
                         discoverStageArgs.cnvCallsFile);
         final String outputPrefixWithSampleName = outputPrefix + SVUtils.getSampleId(getHeaderForReads()) + "_";
         final SvDiscoveryInputData svDiscoveryInputData =
-                new SvDiscoveryInputData(ctx, discoverStageArgs, outputPrefixWithSampleName,
+                new SvDiscoveryInputData(ctx, discoverStageArgs, nonCanonicalChromosomeNamesFile, outputPrefixWithSampleName,
                         null, null, null,
                         cnvCallsBroadcast,
                         getReads(), getHeaderForReads(), getReference(), localLogger);
 
         final EnumMap<RawTypes, JavaRDD<AssemblyContigWithFineTunedAlignments>> contigsByPossibleRawTypes =
-                preprocess(svDiscoveryInputData, nonCanonicalChromosomeNamesFile, writeSAMFiles);
+                preprocess(svDiscoveryInputData, writeSAMFiles);
 
         dispatchJobs(contigsByPossibleRawTypes, svDiscoveryInputData);
     }
@@ -157,13 +160,15 @@ public final class SvDiscoverFromLocalAssemblyContigAlignmentsSpark extends GATK
      * and return the contigs that are classified together for downstream inference.
      */
     public static EnumMap<RawTypes, JavaRDD<AssemblyContigWithFineTunedAlignments>> preprocess(final SvDiscoveryInputData svDiscoveryInputData,
-                                                                                               final String nonCanonicalChromosomeNamesFile,
                                                                                                final boolean writeSAMFiles) {
 
-        final Broadcast<SAMSequenceDictionary> referenceSequenceDictionaryBroadcast = svDiscoveryInputData.referenceSequenceDictionaryBroadcast;
-        final Broadcast<SAMFileHeader> headerBroadcast = svDiscoveryInputData.headerBroadcast;
+        final SvDiscoveryInputData.InputMetaData inputMetaData = svDiscoveryInputData.inputMetaData;
+        final Broadcast<SAMSequenceDictionary> referenceSequenceDictionaryBroadcast = inputMetaData.referenceSequenceDictionaryBroadcast;
+        final Broadcast<SAMFileHeader> headerBroadcast = inputMetaData.headerBroadcast;
+        final String nonCanonicalChromosomeNamesFile = inputMetaData.nonCanonicalChromosomeNamesFile;
+        final Logger toolLogger = inputMetaData.toolLogger;
+
         final JavaRDD<GATKRead> assemblyRawAlignments = svDiscoveryInputData.assemblyRawAlignments;
-        final Logger toolLogger = svDiscoveryInputData.toolLogger;
 
         // filter alignments and split the gaps, hence the name "reconstructed"
         final JavaRDD<AssemblyContigWithFineTunedAlignments> contigsWithChimericAlignmentsReconstructed =
@@ -227,16 +232,19 @@ public final class SvDiscoverFromLocalAssemblyContigAlignmentsSpark extends GATK
 
         svDiscoveryInputData.updateOutputPath(outputPrefixWithSampleName + RawTypes.Cpx.name() + ".vcf");
         SVVCFWriter.writeVCF(complexVariants, svDiscoveryInputData.outputPath,
-                svDiscoveryInputData.referenceSequenceDictionaryBroadcast.getValue(), svDiscoveryInputData.toolLogger);
+                svDiscoveryInputData.inputMetaData.referenceSequenceDictionaryBroadcast.getValue(),
+                svDiscoveryInputData.inputMetaData.toolLogger);
     }
 
     private static void forNonComplexVariants(final EnumMap<RawTypes, JavaRDD<AssemblyContigWithFineTunedAlignments>> contigsByPossibleRawTypes,
                                               final SvDiscoveryInputData svDiscoveryInputData) {
 
-        final String sampleId = svDiscoveryInputData.sampleId;
-        final Broadcast<ReferenceMultiSource> referenceBroadcast = svDiscoveryInputData.referenceBroadcast;
-        final Broadcast<SAMSequenceDictionary> referenceSequenceDictionaryBroadcast = svDiscoveryInputData.referenceSequenceDictionaryBroadcast;
-        final Broadcast<SVIntervalTree<VariantContext>> cnvCallsBroadcast = svDiscoveryInputData.cnvCallsBroadcast;
+        final SvDiscoveryInputData.InputMetaData inputMetaData = svDiscoveryInputData.inputMetaData;
+
+        final String sampleId = inputMetaData.sampleId;
+        final Broadcast<ReferenceMultiSource> referenceBroadcast = inputMetaData.referenceBroadcast;
+        final Broadcast<SAMSequenceDictionary> referenceSequenceDictionaryBroadcast = inputMetaData.referenceSequenceDictionaryBroadcast;
+        final Broadcast<SVIntervalTree<VariantContext>> cnvCallsBroadcast = inputMetaData.cnvCallsBroadcast;
         final String outputPrefixWithSampleName = svDiscoveryInputData.outputPath;
 
         svDiscoveryInputData.updateOutputPath(outputPrefixWithSampleName + "NonComplex.vcf");
@@ -256,7 +264,7 @@ public final class SvDiscoverFromLocalAssemblyContigAlignmentsSpark extends GATK
                         .collect();
 
         SVVCFWriter.writeVCF(annotatedSimpleVariants, svDiscoveryInputData.outputPath,
-                svDiscoveryInputData.referenceSequenceDictionaryBroadcast.getValue(), svDiscoveryInputData.toolLogger);
+                inputMetaData.referenceSequenceDictionaryBroadcast.getValue(), inputMetaData.toolLogger);
     }
 
     /**
