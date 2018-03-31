@@ -59,26 +59,32 @@ public final class SimpleNovelAdjacencyInterpreter {
         final DiscoverVariantsFromContigsAlignmentsSparkArgumentCollection discoverStageArgs = svDiscoveryInputData.discoverStageArgs;
         final List<SVInterval> assembledIntervals = svDiscoveryInputData.assembledIntervals;
 
-        final JavaRDD<SimpleNovelAdjacencyAndChimericAlignmentEvidence> simpleNovelAdjacencies =
-                assemblyContigs
-                        .filter(tig -> ChimericAlignment
-                                .splitPairStrongEnoughEvidenceForCA(
-                                        tig.getHeadAlignment(),
-                                        tig.getTailAlignment(),
-                                        MORE_RELAXED_ALIGNMENT_MIN_MQ, MORE_RELAXED_ALIGNMENT_MIN_LENGTH))
-                        .mapToPair(tig -> {
-                            final SAMSequenceDictionary refSeqDict = referenceSequenceDictionaryBroadcast.getValue();
-                            final ChimericAlignment simpleChimera = ChimericAlignment.extractSimpleChimera(tig, refSeqDict);
-                            final byte[] contigSequence = tig.getContigSequence();
+        final JavaPairRDD<NovelAdjacencyAndAltHaplotype, Iterable<Tuple2<ChimericAlignment, String>>> xxx = assemblyContigs
+                .filter(tig -> ChimericAlignment
+                        .splitPairStrongEnoughEvidenceForCA(
+                                tig.getHeadAlignment(),
+                                tig.getTailAlignment(),
+                                MORE_RELAXED_ALIGNMENT_MIN_MQ, MORE_RELAXED_ALIGNMENT_MIN_LENGTH))
+                .mapToPair(tig -> {
+                    final SAMSequenceDictionary refSeqDict = referenceSequenceDictionaryBroadcast.getValue();
+                    final ChimericAlignment simpleChimera = ChimericAlignment.extractSimpleChimera(tig, refSeqDict);
+                    final byte[] contigSequence = tig.getContigSequence();
 
-                            final NovelAdjacencyAndAltHaplotype novelAdjacencyAndAltHaplotype =
-                                    new NovelAdjacencyAndAltHaplotype(simpleChimera, contigSequence, refSeqDict);
-                            return new Tuple2<>(novelAdjacencyAndAltHaplotype,
-                                    new Tuple2<>(simpleChimera, tig.getSAtagForGoodMappingToNonCanonicalChromosome()));
-                        })
-                        .groupByKey()       // group the same novel adjacency produced by different contigs together
-                        .map(noveltyAndEvidence ->
+                    final NovelAdjacencyAndAltHaplotype novelAdjacencyAndAltHaplotype =
+                            new NovelAdjacencyAndAltHaplotype(simpleChimera, contigSequence, refSeqDict);
+                    return new Tuple2<>(novelAdjacencyAndAltHaplotype,
+                            new Tuple2<>(simpleChimera, tig.getSAtagForGoodMappingToNonCanonicalChromosome()));
+                })
+                .groupByKey();// group the same novel adjacency produced by different contigs together
+
+        final JavaRDD<SimpleNovelAdjacencyAndChimericAlignmentEvidence> simpleNovelAdjacencies =
+
+                        xxx.map(noveltyAndEvidence ->
                                 new SimpleNovelAdjacencyAndChimericAlignmentEvidence(noveltyAndEvidence._1, noveltyAndEvidence._2));
+
+        final JavaRDD<NovelAdjacencyAndAltHaplotype> novelAdjacencyAndAltHaplotypeJavaRDD = xxx.keys();
+        toolLogger.warn( "After groupby operation, " + novelAdjacencyAndAltHaplotypeJavaRDD.count() + " keys left.");
+        toolLogger.warn( "After distinct operation, " + novelAdjacencyAndAltHaplotypeJavaRDD.distinct().count() + " keys left.");
 
         SvDiscoveryUtils.evaluateIntervalsAndNarls(assembledIntervals,
                 simpleNovelAdjacencies.map(SimpleNovelAdjacencyAndChimericAlignmentEvidence::getNovelAdjacencyReferenceLocations).collect(),

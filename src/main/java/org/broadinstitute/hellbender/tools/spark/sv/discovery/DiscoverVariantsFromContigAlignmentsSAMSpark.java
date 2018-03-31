@@ -189,6 +189,9 @@ public final class DiscoverVariantsFromContigAlignmentsSAMSpark extends GATKSpar
                         .groupByKey()   // group the same novel adjacency produced by different contigs together
                         .cache();
 
+        final JavaRDD<NovelAdjacencyAndAltHaplotype> novelAdjacencyAndAltHaplotypeJavaRDD = narlsAndSources.keys();
+        toolLogger.warn( "After groupby operation, " + novelAdjacencyAndAltHaplotypeJavaRDD.count() + " keys left.");
+        toolLogger.warn( "After distinct operation, " + novelAdjacencyAndAltHaplotypeJavaRDD.distinct().count() + " keys left.");
 
         try {
             SvDiscoveryUtils.evaluateIntervalsAndNarls(assembledIntervals, narlsAndSources.map(Tuple2::_1).collect(),
