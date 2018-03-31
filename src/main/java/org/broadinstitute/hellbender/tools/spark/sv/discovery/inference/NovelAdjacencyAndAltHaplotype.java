@@ -107,16 +107,17 @@ public class NovelAdjacencyAndAltHaplotype {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        NovelAdjacencyAndAltHaplotype that = (NovelAdjacencyAndAltHaplotype) o;
+        final NovelAdjacencyAndAltHaplotype that = (NovelAdjacencyAndAltHaplotype) o;
 
         if (!leftJustifiedLeftRefLoc.equals(that.leftJustifiedLeftRefLoc)) return false;
         if (!leftJustifiedRightRefLoc.equals(that.leftJustifiedRightRefLoc)) return false;
         if (strandSwitch != that.strandSwitch) return false;
         if (!complication.equals(that.complication)) return false;
+        if (type != that.type) return false;
         return Arrays.equals(altHaplotypeSequence, that.altHaplotypeSequence);
     }
 
@@ -124,11 +125,36 @@ public class NovelAdjacencyAndAltHaplotype {
     public int hashCode() {
         int result = leftJustifiedLeftRefLoc.hashCode();
         result = 31 * result + leftJustifiedRightRefLoc.hashCode();
-        result = 31 * result + strandSwitch.hashCode();
+        result = 31 * result + strandSwitch.name().hashCode();
         result = 31 * result + complication.hashCode();
+        result = 31 * result + type.name().hashCode();
         result = 31 * result + Arrays.hashCode(altHaplotypeSequence);
         return result;
     }
+
+    //    @Override
+//    public boolean equals(Object o) {
+//        if (this == o) return true;
+//        if (o == null || getClass() != o.getClass()) return false;
+//
+//        NovelAdjacencyAndAltHaplotype that = (NovelAdjacencyAndAltHaplotype) o;
+//
+//        if (!leftJustifiedLeftRefLoc.equals(that.leftJustifiedLeftRefLoc)) return false;
+//        if (!leftJustifiedRightRefLoc.equals(that.leftJustifiedRightRefLoc)) return false;
+//        if (strandSwitch != that.strandSwitch) return false;
+//        if (!complication.equals(that.complication)) return false;
+//        return Arrays.equals(altHaplotypeSequence, that.altHaplotypeSequence);
+//    }
+//
+//    @Override
+//    public int hashCode() {
+//        int result = leftJustifiedLeftRefLoc.hashCode();
+//        result = 31 * result + leftJustifiedRightRefLoc.hashCode();
+//        result = 31 * result + strandSwitch.hashCode();
+//        result = 31 * result + complication.hashCode();
+//        result = 31 * result + Arrays.hashCode(altHaplotypeSequence);
+//        return result;
+//    }
 
     protected void serialize(final Kryo kryo, final Output output) {
         output.writeString(leftJustifiedLeftRefLoc.getContig());
