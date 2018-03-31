@@ -10,7 +10,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.broadinstitute.hellbender.exceptions.GATKException;
-import org.broadinstitute.hellbender.tools.spark.sv.discovery.SvDiscoverFromLocalAssemblyContigAlignmentsSpark;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.SvDiscoveryUtils;
 import org.broadinstitute.hellbender.tools.spark.sv.utils.SVUtils;
 import org.broadinstitute.hellbender.tools.spark.sv.utils.SvCigarUtils;
@@ -95,7 +94,7 @@ public class AssemblyContigAlignmentsConfigPicker {
                          assemblyAlignments.map(GATKRead::getName).distinct().count() + " contigs.");
 
         final JavaRDD<AlignedContig> parsedContigAlignments =
-                new SvDiscoverFromLocalAssemblyContigAlignmentsSpark.SAMFormattedContigAlignmentParser(assemblyAlignments, header, false)
+                new AlignedContigGenerator.SAMFormattedContigAlignmentParser(assemblyAlignments, header, false)
                         .getAlignedContigs()
                         .filter(AssemblyContigAlignmentsConfigPicker::notDiscardForBadMQ).cache();
         assemblyAlignments.unpersist();

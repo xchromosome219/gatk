@@ -6,10 +6,8 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.TextCigarCodec;
 import org.broadinstitute.hellbender.GATKBaseTest;
 import org.broadinstitute.hellbender.engine.spark.SparkContextFactory;
-import org.broadinstitute.hellbender.tools.spark.sv.StructuralVariationDiscoveryPipelineSpark;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.SVTestUtils;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.SimpleSVDiscoveryTestDataProvider;
-import org.broadinstitute.hellbender.tools.spark.sv.discovery.SvDiscoverFromLocalAssemblyContigAlignmentsSpark;
 import org.broadinstitute.hellbender.tools.spark.sv.evidence.AlignedAssemblyOrExcuse;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.Utils;
@@ -67,7 +65,7 @@ public class AlignedContigGeneratorUnitTest extends GATKBaseTest {
 
         final List<SAMRecord> reads = Stream.of(read1, read2, read3).map(read -> read.convertToSAMRecord(null)).collect(Collectors.toList());
 
-        final AlignedContig alignedContig = SvDiscoverFromLocalAssemblyContigAlignmentsSpark.SAMFormattedContigAlignmentParser.parseReadsAndOptionallySplitGappedAlignments(reads, GAPPED_ALIGNMENT_BREAK_DEFAULT_SENSITIVITY, true);
+        final AlignedContig alignedContig = AlignedContigGenerator.SAMFormattedContigAlignmentParser.parseReadsAndOptionallySplitGappedAlignments(reads, GAPPED_ALIGNMENT_BREAK_DEFAULT_SENSITIVITY, true);
         assertEquals(alignedContig.getContigSequence(), read2.getBases());
 
         assertEquals(alignedContig.getAlignments().size(), 3);
@@ -95,7 +93,7 @@ public class AlignedContigGeneratorUnitTest extends GATKBaseTest {
 
         final List<SAMRecord> reads2 = Stream.of(read4, read5).map(read -> read.convertToSAMRecord(null)).collect(Collectors.toList());
 
-        final AlignedContig alignedContig2 = SvDiscoverFromLocalAssemblyContigAlignmentsSpark.SAMFormattedContigAlignmentParser.parseReadsAndOptionallySplitGappedAlignments(reads2, GAPPED_ALIGNMENT_BREAK_DEFAULT_SENSITIVITY, true);
+        final AlignedContig alignedContig2 = AlignedContigGenerator.SAMFormattedContigAlignmentParser.parseReadsAndOptionallySplitGappedAlignments(reads2, GAPPED_ALIGNMENT_BREAK_DEFAULT_SENSITIVITY, true);
         // these should be the reverse complements of each other
         assertEquals(alignedContig2.getContigSequence().length, read4.getBases().length);
 
@@ -116,7 +114,7 @@ public class AlignedContigGeneratorUnitTest extends GATKBaseTest {
 
         // test "failed" assembly doesn't produce anything
         final AlignedAssemblyOrExcuse excuse = new AlignedAssemblyOrExcuse(1, "justATest");
-        Assert.assertTrue(StructuralVariationDiscoveryPipelineSpark.InMemoryAlignmentParser.filterAndConvertToAlignedContigDirect(Collections.singletonList(excuse), refNames, null).isEmpty());
+        Assert.assertTrue(AlignedContigGenerator.InMemoryAlignmentParser.filterAndConvertToAlignedContigDirect(Collections.singletonList(excuse), refNames, null).isEmpty());
 
         // produce test assembly and alignment
         final byte[] dummyContigSequence = SVTestUtils.makeDummySequence(1000, (byte)'T');
@@ -145,7 +143,7 @@ public class AlignedContigGeneratorUnitTest extends GATKBaseTest {
         final AlignedAssemblyOrExcuse alignedAssembly = new AlignedAssemblyOrExcuse(1, assembly, 0, allAlignments);
 
         // test contig extraction without unmapped and unambiguous filtering
-        final Iterable<AlignedContig> alignedContigsIncludingUnmapped = StructuralVariationDiscoveryPipelineSpark.InMemoryAlignmentParser.getAlignedContigsInOneAssembly(alignedAssembly, refNames, null);
+        final Iterable<AlignedContig> alignedContigsIncludingUnmapped = AlignedContigGenerator.InMemoryAlignmentParser.getAlignedContigsInOneAssembly(alignedAssembly, refNames, null);
         Assert.assertEquals(Iterables.size(alignedContigsIncludingUnmapped), 4);
 
         final Iterator<AlignedContig> it = alignedContigsIncludingUnmapped.iterator();
@@ -162,13 +160,13 @@ public class AlignedContigGeneratorUnitTest extends GATKBaseTest {
 
         // test direct conversion (essentially the filtering step)
         final List<AlignedContig> parsedContigsViaDirectRoute
-                = StructuralVariationDiscoveryPipelineSpark.InMemoryAlignmentParser.filterAndConvertToAlignedContigDirect(Collections.singleton(alignedAssembly), refNames, null);
+                = AlignedContigGenerator.InMemoryAlignmentParser.filterAndConvertToAlignedContigDirect(Collections.singleton(alignedAssembly), refNames, null);
         Assert.assertEquals(parsedContigsViaDirectRoute.size(), 2);
         Assert.assertTrue( parsedContigsViaDirectRoute.containsAll(Utils.stream(alignedContigsIncludingUnmapped).filter(ctg -> !ctg.getAlignments().isEmpty()).collect(Collectors.toList())) );
 
         // concordance test with results obtained via SAM route
         final List<AlignedContig> parsedContigsViaSAMRoute
-                = StructuralVariationDiscoveryPipelineSpark.InMemoryAlignmentParser.filterAndConvertToAlignedContigViaSAM(Collections.singletonList(alignedAssembly), hg19Header, SparkContextFactory.getTestSparkContext()).collect();
+                = AlignedContigGenerator.InMemoryAlignmentParser.filterAndConvertToAlignedContigViaSAM(Collections.singletonList(alignedAssembly), hg19Header, SparkContextFactory.getTestSparkContext()).collect();
         Assert.assertEquals(parsedContigsViaDirectRoute, parsedContigsViaSAMRoute);
     }
 
@@ -189,7 +187,7 @@ public class AlignedContigGeneratorUnitTest extends GATKBaseTest {
         final SAMFileHeader header = ArtificialReadUtils.createArtificialSamHeader();
         final SAMRecord unmappedSam = ArtificialReadUtils.createArtificialUnmappedRead(header, new byte[]{}, new byte[]{}).convertToSAMRecord(header);
         AlignedContig unmappedContig =
-                SvDiscoverFromLocalAssemblyContigAlignmentsSpark.SAMFormattedContigAlignmentParser.
+                AlignedContigGenerator.SAMFormattedContigAlignmentParser.
                         parseReadsAndOptionallySplitGappedAlignments(Collections.singletonList(unmappedSam),
                                 GAPPED_ALIGNMENT_BREAK_DEFAULT_SENSITIVITY, true);
         Assert.assertTrue(unmappedContig.isUnmapped());

@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.broadinstitute.hellbender.tools.spark.sv.StructuralVariationDiscoveryArgumentCollection.DiscoverVariantsFromContigsAlignmentsSparkArgumentCollection.GAPPED_ALIGNMENT_BREAK_DEFAULT_SENSITIVITY;
-import static org.broadinstitute.hellbender.tools.spark.sv.discovery.SvDiscoverFromLocalAssemblyContigAlignmentsSpark.SAMFormattedContigAlignmentParser.parseReadsAndOptionallySplitGappedAlignments;
+import static org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignedContigGenerator.SAMFormattedContigAlignmentParser.parseReadsAndOptionallySplitGappedAlignments;
 
 public class AssemblyContigWithFineTunedAlignmentsUnitTest extends GATKBaseTest {
 
