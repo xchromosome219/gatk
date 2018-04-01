@@ -187,6 +187,37 @@ public class StructuralVariationDiscoveryPipelineSpark extends GATKSparkTool {
             experimentalInterpretation(ctx, assembledEvidenceResults, svDiscoveryInputData, evidenceAndAssemblyArgs.crossContigsToIgnoreFile);
         }
 
+        {
+            final JavaRDD<GATKRead> readsReloadedFromBam = svDiscoveryInputData.assemblyRawAlignments;
+
+            final SvDiscoveryInputData svDiscoveryInputData_reloaded =
+                    new SvDiscoveryInputData(svDiscoveryInputData.sampleId, svDiscoveryInputData.discoverStageArgs,
+                            svDiscoveryInputData.outputPath + "experimentalInterpretation_",
+                            svDiscoveryInputData.metadata, svDiscoveryInputData.assembledIntervals,
+                            svDiscoveryInputData.evidenceTargetLinks,
+
+                            readsReloadedFromBam,
+
+                            svDiscoveryInputData.toolLogger, svDiscoveryInputData.referenceBroadcast,
+                            svDiscoveryInputData.referenceSequenceDictionaryBroadcast, svDiscoveryInputData.headerBroadcast,
+                            svDiscoveryInputData.cnvCallsBroadcast);
+
+            final JavaRDD<AlignedContig> alignedContigs_reloaded = new AlignedContigGenerator
+                    .SAMFormattedContigAlignmentParser(readsReloadedFromBam, headerForReads, true)
+                    .getAlignedContigs();
+
+            @SuppressWarnings("deprecation")
+            List<VariantContext> master_again_variants =
+                    org.broadinstitute.hellbender.tools.spark.sv.discovery.DiscoverVariantsFromContigAlignmentsSAMSpark
+                            .discoverVariantsFromChimeras(svDiscoveryInputData, alignedContigs_reloaded);
+
+            SvDiscoverFromLocalAssemblyContigAlignmentsSpark
+                    .dispatchJobs(
+                            SvDiscoverFromLocalAssemblyContigAlignmentsSpark
+                                    .preprocess(svDiscoveryInputData_reloaded, evidenceAndAssemblyArgs.crossContigsToIgnoreFile, true),
+                            svDiscoveryInputData_reloaded
+                    );
+        }
     }
 
     private SvDiscoveryInputData getSvDiscoveryInputData(final JavaSparkContext ctx,
