@@ -27,6 +27,7 @@ import org.broadinstitute.hellbender.tools.spark.sv.discovery.SvDiscoverFromLoca
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.SvDiscoveryInputData;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AlignedContig;
 import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.AssemblyContigWithFineTunedAlignments;
+import org.broadinstitute.hellbender.tools.spark.sv.discovery.alignment.StrandSwitch;
 import org.broadinstitute.hellbender.tools.spark.sv.utils.GATKSVVCFConstants;
 import org.broadinstitute.hellbender.tools.spark.sv.utils.SVInterval;
 import org.broadinstitute.hellbender.tools.spark.sv.utils.SVIntervalTree;
@@ -155,6 +156,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     final int altSeqLength = vc.getAttributeAsString(GATKSVVCFConstants.SEQ_ALT_HAPLOTYPE, "").length() - 1;
                     final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                             .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                            .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                             .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                             .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                             .attribute(GATKSVVCFConstants.SVLEN, altSeqLength)
@@ -219,6 +221,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                 if ( segmentSize > 49 ) {
                     final VariantContextBuilder vcBuilderForDel = new VariantContextBuilder()
                             .chr(refSegment.getContig()).start(refSegment.getStart()).stop(refSegment.getEnd())
+                            .id(makeIDForDel(refSegment))
                             .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleDel))
                             .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.DEL.name())
                             .attribute(GATKSVVCFConstants.SVLEN, -segmentSize)
@@ -232,6 +235,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     if (segmentSize > 49) {
                         final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                                 .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                                .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                                 .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                                 .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                                 .attribute(GATKSVVCFConstants.SVLEN, altSeqLength)
@@ -242,6 +246,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     } else { // fat insertion
                         final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                                 .chr(refSegment.getContig()).start(refSegment.getStart()).stop(refSegment.getEnd())
+                                .id(makeIDForIns(refSegment.getContig(), refSegment.getStart(), refSegment.getEnd()))
                                 .alleles(Arrays.asList(fatInsertionRefAllele, altSymbAlleleIns))
                                 .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                                 .attribute(GATKSVVCFConstants.SVLEN, altSeqLength)
@@ -255,6 +260,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                 if (segmentSize > 49) {
                     final VariantContextBuilder vcBuilderForInv = new VariantContextBuilder()
                             .chr(refSegment.getContig()).start(refSegment.getStart()).stop(refSegment.getEnd())
+                            .id(makeIDForInv(refSegment))
                             .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleInv))
                             .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INV.name())
                             .attribute(GATKSVVCFConstants.SVLEN, 0) // per VCF spec, INV should have 0 length
@@ -266,6 +272,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     if ( altSeqLength - segmentSize > 49 ) {
                         final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                                 .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                                .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                                 .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                                 .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                                 .attribute(GATKSVVCFConstants.SVLEN, altSeqLength - segmentSize)
@@ -277,6 +284,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                 } else if ( altSeqLength > 49 ){ // ref segment replace with fat INS (because the ref segment is not long enough to merit a deletion)
                     final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                             .chr(refSegment.getContig()).start(refSegment.getStart()).stop(refSegment.getEnd())
+                            .id(makeIDForIns(refSegment.getContig(), refSegment.getStart(), refSegment.getEnd()))
                             .alleles(Arrays.asList(fatInsertionRefAllele, altSymbAlleleIns))
                             .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                             .attribute(GATKSVVCFConstants.SVLEN, altSeqLength)
@@ -293,6 +301,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     if (altArrangement.get(altArrangement.size() - 1).equals("1")) {
                         final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                                 .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                                .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                                 .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                                 .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                                 .attribute(GATKSVVCFConstants.SVLEN, altSeqLength - segmentSize)
@@ -303,6 +312,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     } else if (altArrangement.get(0).equals("1")) {
                         final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                                 .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                                .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                                 .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                                 .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                                 .attribute(GATKSVVCFConstants.SVLEN, altSeqLength - segmentSize)
@@ -316,6 +326,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                 if (segmentSize > 49) { // segment inverted long enough to warrant an inversion
                     final VariantContextBuilder vcBuilderForInv = new VariantContextBuilder()
                             .chr(refSegment.getContig()).start(refSegment.getStart()).stop(refSegment.getEnd())
+                            .id(makeIDForIns(refSegment.getContig(), refSegment.getStart(), refSegment.getEnd()))
                             .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleInv))
                             .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INV.name())
                             .attribute(GATKSVVCFConstants.SVLEN, 0) // per VCF spec, INV should have 0 length
@@ -327,6 +338,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     if ( altSeqLength - segmentSize > 49 ) {
                         final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                                 .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                                .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                                 .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                                 .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                                 .attribute(GATKSVVCFConstants.SVLEN, altSeqLength - segmentSize)
@@ -338,6 +350,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                 } else if ( altSeqLength - segmentSize > 49 ) { // inverted segment not long enough for an inversion call
                     final VariantContextBuilder vcBuilderForIns = new VariantContextBuilder()
                             .chr(vc.getContig()).start(vc.getStart()).stop(vc.getStart())
+                            .id(makeIDForIns(vc.getContig(), vc.getStart(), vc.getStart()))
                             .alleles(Arrays.asList(anchorBaseRefAllele, altSymbAlleleIns))
                             .attribute(GATKSVVCFConstants.SVTYPE, SimpleSVType.TYPES.INS.name())
                             .attribute(GATKSVVCFConstants.SVLEN, altSeqLength - segmentSize)
@@ -416,6 +429,8 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                         return new VariantContextBuilder(simpleVC)
                                 .attribute(EVENT_KEY,
                                         String.join(VCFConstants.INFO_FIELD_ARRAY_SEPARATOR, consistentComplexVariantIDs))
+                                .id(simpleVC.getID() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR +
+                                        CPX_DERIVED)
                                 .make();
                     }
                 })
@@ -528,6 +543,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                                     final byte[] ref = reference.getReferenceBases(new SimpleInterval(segment.getContig(), segment.getStart(), segment.getStart())).getBases();
                                     return new VariantContextBuilder()
                                             .chr(segment.getContig()).start(segment.getStart()).stop(segment.getEnd())
+                                            .id(makeIDForInv(segment))
                                             .alleles(Arrays.asList(
                                                     Allele.create(ref, true),
                                                     Allele.create(SimpleSVType.createBracketedSymbAlleleString(GATKSVVCFConstants.SYMB_ALT_ALLELE_INV)))
@@ -556,6 +572,7 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                                     final byte[] ref = reference.getReferenceBases(new SimpleInterval(segment.getContig(), segment.getStart(), segment.getStart())).getBases();
                                     return new VariantContextBuilder()
                                             .chr(segment.getContig()).start(segment.getStart()).stop(segment.getEnd())
+                                            .id(makeIDForDel(segment))
                                             .alleles(Arrays.asList(
                                                     Allele.create(ref, true),
                                                     Allele.create(SimpleSVType.createBracketedSymbAlleleString(GATKSVVCFConstants.SYMB_ALT_ALLELE_DEL)))
@@ -624,5 +641,31 @@ public class CpxVariantReInterpreterSpark extends GATKSparkTool {
                     }
                 })
                 .collect(Collectors.toList());
+    }
+
+    private static final String CPX_DERIVED = "CPX_DERIVED";
+
+    private static String makeIDForDel(final SimpleInterval deletedRange) {
+        return SimpleSVType.TYPES.DEL.name() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + deletedRange.getContig() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + deletedRange.getStart() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + deletedRange.getEnd() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR +
+                CPX_DERIVED;
+    }
+
+    private static String makeIDForIns(final String contig, final int start, final int end) {
+        return SimpleSVType.TYPES.INS.name() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + contig + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + start + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + end + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR +
+                CPX_DERIVED;
+    }
+
+    private static String makeIDForInv(final SimpleInterval invertedRange) {
+        return "INVERSION" + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + invertedRange.getContig() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + invertedRange.getStart() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR
+                + invertedRange.getEnd() + GATKSVVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR +
+                CPX_DERIVED;
     }
 }
