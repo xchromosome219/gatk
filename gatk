@@ -425,6 +425,7 @@ def convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs):
 
     # Make sure we include our config file to distribute to spark nodes if we have specified one:
     if configFileSpecified:
+        #TODO: You probably have to change the config file option to point to the new correct location on each worker node.
         filesToAdd = filesToAdd + configFilePath
 
     try:
