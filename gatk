@@ -23,6 +23,8 @@ import hashlib
 import signal
 import re
 
+###############################################################################
+
 script = os.path.dirname(os.path.realpath(__file__))
 
 projectName = "gatk"
@@ -33,30 +35,18 @@ GATK_LOCAL_JAR_ENV_VARIABLE = "GATK_LOCAL_JAR"
 GATK_SPARK_JAR_ENV_VARIABLE = "GATK_SPARK_JAR"
 BIN_PATH = script + "/build/libs"
 
-EXTRA_JAVA_OPTIONS_SPARK= "-DGATK_STACKTRACE_ON_USER_EXCEPTION=true " \
-                   "-Dsamjdk.use_async_io_read_samtools=false " \
-                   "-Dsamjdk.use_async_io_write_samtools=false " \
-                   "-Dsamjdk.use_async_io_write_tribble=false " \
-                   "-Dsamjdk.compression_level=2 "
-
-PACKAGED_LOCAL_JAR_OPTIONS= ["-Dsamjdk.use_async_io_read_samtools=false",
-                  "-Dsamjdk.use_async_io_write_samtools=true",
-                  "-Dsamjdk.use_async_io_write_tribble=false",
-                  "-Dsamjdk.compression_level=2"]
+PACKAGED_LOCAL_JAR_OPTIONS = []
 
 DEFAULT_SPARK_ARGS_PREFIX = '--conf'
-DEFAULT_SPARK_ARGS = {
-    "spark.kryoserializer.buffer.max" : "512m",
-    "spark.driver.maxResultSize" : "0",
-    "spark.driver.userClassPathFirst" : "false",
-    "spark.io.compression.codec" : "lzf",
-    "spark.yarn.executor.memoryOverhead" : "600",
-    "spark.driver.extraJavaOptions" : EXTRA_JAVA_OPTIONS_SPARK,
-    "spark.executor.extraJavaOptions" : EXTRA_JAVA_OPTIONS_SPARK
-}
+
+configFileSpecified = False
+configFilePath = ""
+
+###############################################################################
+
 
 def createSparkConfArgs(javaOptions):
-    sparkConfArgs = DEFAULT_SPARK_ARGS
+    sparkConfArgs = {}
 
     if javaOptions is not None:
         sparkConfArgs["spark.driver.extraJavaOptions"] = sparkConfArgs["spark.driver.extraJavaOptions"] + ' ' + javaOptions
@@ -139,6 +129,14 @@ def main(args):
             i = args.index("--spark-submit-command")
             del args[i] #remove sparkSubmitCommand target
             del args[i] #and its parameter
+
+        # This may be bad style (using globals here):
+        global configFilePath
+        configFilePath = getValueForArgument(args, "--gatk-config-file")
+        if configFilePath is not None:
+            global configFileSpecified
+            configFileSpecified = True
+            configFilePath = os.path.realpath(configFilePath)
 
         (gatkArgs, sparkArgs) = getSplitArgs(args)
 
@@ -424,6 +422,11 @@ def convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs):
     dataprocargs = []
     filesToAdd = []
     properties = []
+
+    # Make sure we include our config file to distribute to spark nodes if we have specified one:
+    if configFileSpecified:
+        filesToAdd = filesToAdd + configFilePath
+
     try:
 
         # Arguments passed as the sparkConfArgs should be passed through as properties.
