@@ -170,7 +170,7 @@ public class CNNScoreVariants extends VariantWalker {
 
     private int curBatchSize = 0;
     private int windowEnd = windowSize / 2;
-    private int windowStart = (windowSize / 2) - 1;
+    private int windowStart = windowSize / 2;
     private boolean waitforBatchCompletion = false;
     private File scoreFile;
 
@@ -319,10 +319,14 @@ public class CNNScoreVariants extends VariantWalker {
         }
         Iterator<GATKRead> readIt = readsContext.iterator();
         if (!readIt.hasNext()) {
-            logger.warn("No reads at contig:" + variant.getContig() + "site:" + String.valueOf(variant.getStart()));
+            logger.warn("No reads at contig:" + variant.getContig() + " site:" + String.valueOf(variant.getStart()));
         }
         while (readIt.hasNext()) {
-            sb.append(GATKReadToString(readIt.next()));
+            GATKRead r  = readIt.next();
+            if (r.getReadGroup().toLowerCase().contains("artificial")){
+                continue;
+            }
+            sb.append(GATKReadToString(r));
         }
         sb.append("\n");
         batchList.add(sb.toString());
