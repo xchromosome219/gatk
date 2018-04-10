@@ -39,6 +39,8 @@ PACKAGED_LOCAL_JAR_OPTIONS = []
 
 DEFAULT_SPARK_ARGS_PREFIX = '--conf'
 
+GATK_CONFIG_FILE_ARG = 'gatk-config-file'
+
 configFileSpecified = False
 configFilePath = ""
 
@@ -81,7 +83,7 @@ def main(args):
             print("    gatk Tool --help  Print help on a particular tool" )
             print("")
             print(" Configuration File Specification")
-            print("     --gatk-config-file                PATH/TO/GATK/PROPERTIES/FILE")
+            print("     " + GATK_CONFIG_FILE_ARG + "                PATH/TO/GATK/PROPERTIES/FILE")
             print("")
             print(" gatk forwards commands to GATK and adds some sugar for submitting spark jobs")
             print("")
@@ -132,7 +134,7 @@ def main(args):
 
         # This may be bad style (using globals here):
         global configFilePath
-        configFilePath = getValueForArgument(args, "--gatk-config-file")
+        configFilePath = getValueForArgument(args, GATK_CONFIG_FILE_ARG)
         if configFilePath is not None:
             global configFileSpecified
             configFileSpecified = True
@@ -323,6 +325,15 @@ def runGATK(sparkRunner, suppliedSparkSubmitCommand, dryrun, gatkArgs, sparkArgs
         sparkConfArgsPrefix, sparkConfArgs = createSparkConfArgs(javaOptions)
         sparkConfArgList = [[sparkConfArgsPrefix, "%s=%s" % (a, sparkConfArgs[a])] for a in sparkConfArgs];
 
+        # we need to change the path of the config file when we run on dataproc
+        # this is because the config file itself will be placed in the same directory
+        # as the executable:
+        for i in range(len(gatkArgs)):
+            if gatkArgs[i] == GATK_CONFIG_FILE_ARG:
+                i += 1
+                gatkArgs[i] = os.path.basename(gatkArgs[i])
+                break
+
         cmd = [ sparkSubmitCmd,
           "--master", getSparkMasterSpecified(gatkArgs)] \
               + [s for args in sparkConfArgList for s in args] \
@@ -448,6 +459,15 @@ def convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs):
                 else:
                     properties.append(sparkArgs[i])
 
+            # we need to change the path of the config file when we run on dataproc
+            # this is because the config file itself will be placed in the same directory
+            # as the executable:
+            elif arg == GATK_CONFIG_FILE_ARG:
+                i += 1
+                dataprocargs.append(arg)
+                config_file_name = os.path.basename(sparkArgs[i])
+                dataprocargs.append(config_file_name)
+
             elif not replacements.get(arg) is None:
                 i += 1
                 propertyname = replacements.get(arg)
@@ -455,7 +475,9 @@ def convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs):
 
             else:
                 dataprocargs.append(arg)
+
             i +=1
+
     except IndexError:
         raise GATKLaunchException("Found an argument: " + arg + "with no matching value.")
 
