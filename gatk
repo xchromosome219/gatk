@@ -39,7 +39,7 @@ PACKAGED_LOCAL_JAR_OPTIONS = []
 
 DEFAULT_SPARK_ARGS_PREFIX = '--conf'
 
-GATK_CONFIG_FILE_ARG = 'gatk-config-file'
+GATK_CONFIG_FILE_ARG = '--gatk-config-file'
 
 configFileSpecified = False
 configFilePath = ""
@@ -139,6 +139,7 @@ def main(args):
             global configFileSpecified
             configFileSpecified = True
             configFilePath = os.path.realpath(configFilePath)
+            print 'has a config file: ' + configFilePath
 
         (gatkArgs, sparkArgs) = getSplitArgs(args)
 
@@ -319,6 +320,7 @@ def runGATK(sparkRunner, suppliedSparkSubmitCommand, dryrun, gatkArgs, sparkArgs
     if sparkRunner is None or sparkRunner == "LOCAL":
         cmd = getLocalGatkRunCommand(javaOptions) + gatkArgs + sparkArgs
         runCommand(cmd, dryrun)
+
     elif sparkRunner == "SPARK":
         sparkSubmitCmd = getSparkSubmitCommand(suppliedSparkSubmitCommand)
 
@@ -345,6 +347,7 @@ def runGATK(sparkRunner, suppliedSparkSubmitCommand, dryrun, gatkArgs, sparkArgs
             runCommand(cmd, dryrun)
         except OSError:
             raise GATKLaunchException("Tried to run %s but failed.\nMake sure %s is available in your path" % (sparkSubmitCmd, sparkSubmitCmd))
+
     elif sparkRunner == "GCS":
         jarPath = cacheJarOnGCS(getSparkJar(), dryrun)
         gcloudCmd = getGCloudSubmitCommand(suppliedSparkSubmitCommand)
@@ -355,6 +358,16 @@ def runGATK(sparkRunner, suppliedSparkSubmitCommand, dryrun, gatkArgs, sparkArgs
         dataprocargs = convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs)
 
         sys.stderr.write("\nReplacing spark-submit style args with dataproc style args\n\n" + " ".join(sparkArgs) +" -> " + " ".join(dataprocargs) +"\n" )
+
+        # we need to change the path of the config file when we run on dataproc
+        # this is because the config file itself will be placed in the same directory
+        # as the executable:
+        for i in range(len(gatkArgs)):
+            if gatkArgs[i] == GATK_CONFIG_FILE_ARG:
+                i += 1
+                gatkArgs[i] = os.path.basename(gatkArgs[i])
+                print gatkArgs[i]
+                break
 
         cmd = [ gcloudCmd, "dataproc", "jobs", "submit", "spark"] \
               + dataprocargs \
@@ -436,8 +449,7 @@ def convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs):
 
     # Make sure we include our config file to distribute to spark nodes if we have specified one:
     if configFileSpecified:
-        #TODO: You probably have to change the config file option to point to the new correct location on each worker node.
-        filesToAdd = filesToAdd + configFilePath
+        filesToAdd = filesToAdd + [configFilePath]
 
     try:
 
@@ -458,15 +470,6 @@ def convertSparkSubmitToDataprocArgs(sparkConfArgs, sparkArgs):
                     filesToAdd = filesToAdd + files.split(",")
                 else:
                     properties.append(sparkArgs[i])
-
-            # we need to change the path of the config file when we run on dataproc
-            # this is because the config file itself will be placed in the same directory
-            # as the executable:
-            elif arg == GATK_CONFIG_FILE_ARG:
-                i += 1
-                dataprocargs.append(arg)
-                config_file_name = os.path.basename(sparkArgs[i])
-                dataprocargs.append(config_file_name)
 
             elif not replacements.get(arg) is None:
                 i += 1
