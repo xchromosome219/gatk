@@ -269,8 +269,8 @@ while true; do
                     INIT_ARGS="${INIT_SCRIPT} gs://${GCS_SAVE_PATH}/init/"
                 fi
 
-                echo "create_cluster.sh ${GATK_DIR} ${PROJECT_NAME} ${CLUSTER_NAME} ${CLUSTER_MAX_LIFE_HOURS} ${CLUSTER_MAX_IDLE_MINUTES} ${GCS_REFERENCE_DIR} ${GCS_BAM_DIR} ${INIT_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}" | tee -a ${LOCAL_LOG_FILE}
-                create_cluster.sh ${GATK_DIR} ${PROJECT_NAME} ${CLUSTER_NAME} ${CLUSTER_MAX_LIFE_HOURS} ${CLUSTER_MAX_IDLE_MINUTES} ${GCS_REFERENCE_DIR} ${GCS_BAM_DIR} ${INIT_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}
+                echo "create_cluster.sh ${GATK_DIR} ${PROJECT_NAME} ${CLUSTER_NAME} ${CLUSTER_MAX_LIFE_HOURS} ${CLUSTER_MAX_IDLE_MINUTES} ${GCS_REFERENCE_DIR} ${GCS_BAM} ${INIT_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}" | tee -a ${LOCAL_LOG_FILE}
+                create_cluster.sh ${GATK_DIR} ${PROJECT_NAME} ${CLUSTER_NAME} ${CLUSTER_MAX_LIFE_HOURS} ${CLUSTER_MAX_IDLE_MINUTES} ${GCS_REFERENCE_DIR} ${GCS_BAM} ${INIT_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}
                 break
                 ;;
         [Nn]*)  break
@@ -295,8 +295,8 @@ while true; do
     fi
     case $yn in
         [Yy]*)  SECONDS=0
-                echo "GATK_SV_TOOL=${GATK_SV_TOOL} runWholePipeline.sh ${GATK_DIR} ${CLUSTER_NAME} ${OUTPUT_DIR} ${CLUSTER_BAM} ${CLUSTER_REFERENCE_2BIT} ${CLUSTER_REFERENCE_IMAGE} ${SV_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}" | tee -a ${LOCAL_LOG_FILE}
-                GATK_SV_TOOL=${GATK_SV_TOOL} runWholePipeline.sh ${GATK_DIR} ${CLUSTER_NAME} ${OUTPUT_DIR} ${CLUSTER_BAM} ${CLUSTER_REFERENCE_2BIT} ${CLUSTER_REFERENCE_IMAGE} ${SV_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}
+                echo "GATK_SV_TOOL=${GATK_SV_TOOL} runWholePipeline.sh ${GATK_DIR} ${PROJECT_NAME} ${CLUSTER_NAME} ${OUTPUT_DIR} ${CLUSTER_BAM} ${CLUSTER_REFERENCE_2BIT} ${CLUSTER_REFERENCE_IMAGE} ${SV_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}" | tee -a ${LOCAL_LOG_FILE}
+                GATK_SV_TOOL=${GATK_SV_TOOL} runWholePipeline.sh ${GATK_DIR} ${PROJECT_NAME} ${CLUSTER_NAME} ${OUTPUT_DIR} ${CLUSTER_BAM} ${CLUSTER_REFERENCE_2BIT} ${CLUSTER_REFERENCE_IMAGE} ${SV_ARGS} 2>&1 | tee -a ${LOCAL_LOG_FILE}
                 printf 'Pipeline completed in %02dh:%02dm:%02ds\n' $((${SECONDS}/3600)) $((${SECONDS}%3600/60)) $((${SECONDS}%60))
                 break
                 ;;
